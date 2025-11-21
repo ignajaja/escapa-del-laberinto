@@ -1,9 +1,27 @@
-import pygame, random #pygame es la librería que vamos a usar para mostrar graficamente el juego
+import pygame, random, json #pygame es la librería que vamos a usar para mostrar graficamente el juego
+import tkinter as tk
 
 
 ANCHO_VEN = 800
 ALTO_VEN = 600
 TAMANO_ESPACIO = 40
+
+class Puntajes:
+    def __init__(self, nombre, pantalla):
+        self.nombre = nombre
+
+    def ordenar(self):
+        for i in range(len(self.puntajes)):
+            for j in range(i+1, len(self.puntajes)):
+                if self.puntajes[j]['puntaje'] > self.puntajes[i]['puntaje']:
+                    self.puntajes[i], self.puntajes[j] = self.puntajes[j], self.puntajes[i]
+
+    
+    def guardar(self):
+        with open('puntajes.json', 'w') as a:
+            
+            json.dump(self.puntajes, a)
+
 
 class Espacio:
     def __init__(self, x, y):
@@ -52,16 +70,17 @@ class Tunel(Espacio):
         self.color = "#b66c2f"
 
 class Jugador:
-    def __init__(self, x, y):
+    def __init__(self, x, y, nombre):
         self.x = x
         self.y = y
         self.energia = 100
         self.corriendo = False
+        self.vel = 2
+        self.vel_corriendo = 3
     
     def mover(self, mx, my, mapa):
         px = self.x + mx # px es la posición en la que va a quedar x
         py = self.y + my # py es la posición en la que va a quedar y
-        print(self.x, self.y, px, py)
         
         if mapa.jugador_pasa(px, py):
             self.x = px
@@ -70,34 +89,89 @@ class Jugador:
             if self.corriendo and self.energia > 0:
                 self.energia -= 1
 
+    def correr(self, correr):
+        if correr and self.energia > 0:
+            self.corriendo = True
+        else:
+            self.corriendo = False
+
+    def consumir_energia(self, can):
+        self.energia = max(0, self.energia - can)
+    
+    def recuperar_energia(self, can):
+        self.energia = min(100, self.energia + can)
+
+
     def dibujar(self, pantalla):
-        pygame.draw.circle(pantalla, 'white', ((self.x * TAMANO_ESPACIO)+(TAMANO_ESPACIO //2), (self.y * TAMANO_ESPACIO)+(TAMANO_ESPACIO //2)), TAMANO_ESPACIO//3)
+        pygame.draw.circle(pantalla, '#000000', ((self.x * TAMANO_ESPACIO)+(TAMANO_ESPACIO //2), (self.y * TAMANO_ESPACIO)+(TAMANO_ESPACIO //2)), TAMANO_ESPACIO//3)
+
+
+class Enemigo:
+    def __init__(self, x, y, vel):
+        self.x = x
+        self.y = y
+        self.vel = vel
+        self.vivo = True
+        self.timeout = 0
+
+    def perseguir(self, pos_jug_x, pos_jug_y, mapa):
+        dx = pos_jug_x - self.x
+        dy = pos_jug_y - self.y
+
+        if abs(dx) > abs(dy):
+            if dx > 0 and mapa.enemigo_pasa(self.x +1, self.y):
+                self.x += 1
+            elif dx > 0 and mapa.enemigo_pasa(self.x -1, self.y):
+                self.x -= 1
+        else:
+            if dx > 0 and mapa.enemigo_pasa(self.x, self.y +1):
+                self.y += 1
+            elif dx > 0 and mapa.enemigo_pasa(self.x, self.y -1):
+                self.y -= 1
+
+    def escapar(self, pos_jug_x,  pos_jug_y, mapa):
+        dx = self.x - pos_jug_x 
+        dy = self.y - pos_jug_y 
+
+        
 
 class Mapa:
     def __init__(self, ancho, alto):
         self.ancho = ancho
         self.alto = alto
         self.espacios = []
-        self.generar_basico()
+        self.generar_mapa()
 
-    def generar_basico(self):
+    def generar_mapa(self):
         for y in range(self.alto):
             fila = []
             for x in range(self.ancho):
                 terreno = random.randint(0, 10)
-                if x == 0 or x == self.ancho -1 or y == 0 or y == self.alto-1:
-                    fila.append(Muro(x,y))
-                
-                elif terreno == 1:
-                    fila.append(Muro(x,y))
-                elif terreno == 2:
-                    fila.append(Liana(x,y))
-                elif terreno == 3:
-                    fila.append(Tunel(x, y))
-                else:
-                    fila.append(Camino(x, y))
-
+                fila.append(terreno)
             self.espacios.append(fila)
+
+        # self.crear_terreno()
+
+        # self.asegurar_camino()
+
+    def jugador_pasa(self, x, y):
+        if 0 <= x < self.ancho and 0 <= y < self.alto:
+            terreno = self.obtener_terreno(x,y)
+            return terreno.jugador_pasa()
+        return False
+            #     if x == 0 or x == self.ancho -1 or y == 0 or y == self.alto-1:
+            #         fila.append(Muro(x,y))
+                
+            #     elif terreno == 1:
+            #         fila.append(Muro(x,y))
+            #     elif terreno == 2:
+            #         fila.append(Liana(x,y))
+            #     elif terreno == 3:
+            #         fila.append(Tunel(x, y))
+            #     else:
+            #         fila.append(Camino(x, y))
+
+            # self.espacios.append(fila)
 
     def jugador_pasa(self, x, y):
         if 0<=x < self.ancho and 0<=y < self.alto:
@@ -139,6 +213,7 @@ class Juego:
             self.jugador.mover(1,0, self.mapa)
         if entradas[pygame.K_a] or entradas[pygame.K_LEFT]:
             self.jugador.mover(-1,0, self.mapa)
+        
             
         if not self.jugador.corriendo and self.jugador.energia < 100:
             self.jugador.energia += 0.5
@@ -161,7 +236,38 @@ class Juego:
             self.reloj.tick(60)
         
         pygame.quit()
+
+class VentanaPrincipal:
+    def __init__(self):
+        pass
+
+    def iniciar_juego(self, nombre):
+        juego= Juego()
+        juego.ejecutar()
+
+    def mostrar(self):
+        root =tk.Tk()
+        root.geometry("400x140")
+        root.title("Escapa del laberinto")
+
+        contenedor = tk.Frame(root)
+        contenedor.pack(fill="both", expand=True)
+        panel = tk.Label(contenedor, font=("Arial", 20, "bold"))
+        panel.pack(fill="x", padx=10, pady=20)  
+
+        tk.Label(panel, text='Ingrese su nombre:').pack()
+        entrada_nombre = tk.Entry(panel); entrada_nombre.pack(); entrada_nombre.insert(0, 'Jugador')
+        nombre = entrada_nombre.get()
+        tk.Button(panel, text='Iniciar Juego', command=VentanaPrincipal.iniciar_juego(self, nombre))
+
+
+        root.mainloop()
+
+
     
 if __name__ == "__main__":
-        juego=Juego()
-        juego.ejecutar()
+        # juego=Juego()
+        # juego.ejecutar()
+
+    ventana = VentanaPrincipal()
+    ventana.mostrar()
