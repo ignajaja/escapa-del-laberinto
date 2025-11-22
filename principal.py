@@ -1,5 +1,6 @@
 import pygame, random, json #pygame es la librería que vamos a usar para mostrar graficamente el juego
 import tkinter as tk
+from tkinter import messagebox
 
 
 ANCHO_VEN = 800
@@ -185,14 +186,15 @@ class Mapa:
 
 
 class Juego:
-    def __init__(self):
+    def __init__(self, nombre):
         pygame.init()
         self.pantalla = pygame.display.set_mode((ANCHO_VEN, ALTO_VEN))
         self.reloj = pygame.time.Clock()
         self.running = True
+        self.nombre = nombre
 
         self.mapa = Mapa(20,15)
-        self.jugador = Jugador(1,1)
+        self.jugador = Jugador(1,1, nombre)
 
     def cerrar(self):
         for evento in pygame.event.get():
@@ -203,7 +205,6 @@ class Juego:
 
         entradas = pygame.key.get_pressed()
         self.jugador.corriendo = entradas[pygame.K_LSHIFT]
-
 
         if entradas[pygame.K_w] or entradas[pygame.K_UP]:
             self.jugador.mover(0,-1, self.mapa)
@@ -237,37 +238,86 @@ class Juego:
         
         pygame.quit()
 
+
+class Puntajes:
+    def __init__(self):
+        self.puntajes = []
+
+    def cargar_puntajes(self):
+        try:
+            with open('puntajes.json', 'r', encoding='utf-8') as a:
+                self.puntajes = json.load(a)
+        except:
+            messagebox.showerror("Error", "Error cargando puntajes")
+    
+    def guardar_puntajes(self):
+        try:
+            with open("puntajes.json", "w", encoding='utf-8') as a:
+                json.dump(self.puntajes, a, indent=4)
+        except:
+            messagebox.showerror("Error", "Error al guardar puntajes")
+    
+    def agregar_puntaje(self, nombre, puntaje):
+        punt = {
+            nombre: puntaje
+        }
+        self.puntajes.append(punt)
+        self.puntajes.sort(key=lambda x: x['puntaje'], reverse=True)
+        self.guardar_puntajes()
+
 class VentanaPrincipal:
     def __init__(self):
-        pass
+        self.nombre = None
+        self.ventana = tk.Tk()
+        self.ventana.title("Escapa del laberinto")
+        self.mostrar()
 
-    def iniciar_juego(self, nombre):
-        juego= Juego()
+    def iniciar_juego():
+        juego=Juego()
         juego.ejecutar()
 
     def mostrar(self):
-        root =tk.Tk()
-        root.geometry("400x140")
-        root.title("Escapa del laberinto")
+        tk.Label(self.ventana,text='Escapa del laberinto', font=("Arial", 18, "bold"),fg="#000000").pack(pady=20)
+        tk.Label(self.ventana,text='Ingrese su nombre para iniciar:', font=("Arial", 15, "bold"), fg="#000000").pack(pady=10)
+        self.entry_nombre = tk.Entry(self.ventana, font=("Arial", 14)); self.entry_nombre.pack(pady=10); self.entry_nombre.insert(0, 'Jugador')
+        self.entry_nombre.bind('<Return>', lambda event: VentanaPrincipal.iniciar_juego())
+        tk.Button(self.ventana, text='Iniciar Juego', font=("Arial", 14), command=VentanaPrincipal.iniciar_juego).pack(pady=20)
 
-        contenedor = tk.Frame(root)
-        contenedor.pack(fill="both", expand=True)
-        panel = tk.Label(contenedor, font=("Arial", 20, "bold"))
-        panel.pack(fill="x", padx=10, pady=20)  
-
-        tk.Label(panel, text='Ingrese su nombre:').pack()
-        entrada_nombre = tk.Entry(panel); entrada_nombre.pack(); entrada_nombre.insert(0, 'Jugador')
-        nombre = entrada_nombre.get()
-        tk.Button(panel, text='Iniciar Juego', command=VentanaPrincipal.iniciar_juego(self, nombre))
-
-
-        root.mainloop()
-
+    def validar_nombre(self):
+        nombre = self.entry_nombre.get().strip()
+        if not len(nombre) == 3:
+            messagebox.showwarning("Error", "El nombre debe de tener 3 dígitos")
+            return False
+        return True
+    
+    def iniciar_juego(self):
+        if self.validar_nombre():
+            self.nombre = self.entry_nombre.get()
+            self.ventana.destroy()
 
     
-if __name__ == "__main__":
-        # juego=Juego()
-        # juego.ejecutar()
 
-    ventana = VentanaPrincipal()
-    ventana.mostrar()
+    def mostrar_puntajes(self):
+
+    def ejecutar(self):
+        self.ventana.mainloop()
+        return self.nombre
+
+    
+def iniciar():
+    ventana_principal = VentanaPrincipal()
+    nombre = ventana_principal.ejecutar()
+
+    if nombre == None:
+        nombre = 'Jugador'
+
+    juego = Juego(nombre)
+    juego.ejecutar()
+    root = tk.TK()
+    root.withdraw()
+    root.destroy()
+
+
+if __name__ == "__main__":
+    iniciar()
+
