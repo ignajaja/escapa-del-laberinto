@@ -18,7 +18,7 @@ class Puntajes:
             with open(self.archivo, 'r', encoding='utf-8') as a:
                 self.puntajes = json.load(a)
         except:
-            messagebox.showerror("Error", "Error al cargar los puntajes")
+            True
     
     def guardar_punt(self):
         try:
@@ -224,7 +224,7 @@ class Juego:
         return False
     
     def calcular_puntaje(self):
-        return 1000 - (self.tiempo/1000)
+        return 100 - (self.tiempo/1000)
 
     def finalizar(self):
         self.juego_termi = True
@@ -298,6 +298,7 @@ class Juego:
 class VentanaPrincipal:
     def __init__(self):
         self.nombre = None
+        self.tipo = None
         self.ventana = tk.Tk()
         self.ventana.title("Escapa del laberinto")
         self.mostrar()
@@ -306,11 +307,13 @@ class VentanaPrincipal:
     def mostrar(self):
         tk.Label(self.ventana,text='Escapa del laberinto', font=("Arial", 18, "bold"),fg="#000000").pack(pady=20)
         tk.Label(self.ventana,text='Ingrese su nombre para iniciar:', font=("Arial", 15, "bold"), fg="#000000").pack(pady=10)
-        self.entry_nombre = tk.Entry(self.ventana, font=("Arial", 14)); self.entry_nombre.pack(pady=10); self.entry_nombre.insert(0, 'Jugador')
-        tk.Label(self.ventana,text='Ingrese 1 para jugar de escapista\ny 2 para cazador:', font=("Arial", 15, "bold"), fg="#000000").pack(pady=10)
+        self.entry_nombre = tk.Entry(self.ventana, font=("Arial", 14)); self.entry_nombre.pack(pady=10); self.entry_nombre.insert(0, 'NOM')
+        tk.Label(self.ventana,text='Ingrese: \n- 1 para escapista\n- 2 para cazador  ', font=("Arial", 15, "bold"), fg="#000000").pack(pady=10)
         self.entry_tipo = tk.Entry(self.ventana, font=("Arial", 14)); self.entry_tipo.pack(pady=10); self.entry_tipo.insert(0, '1')
         
-        tk.Button(self.ventana, text='Iniciar Juego', font=("Arial", 14), command=self.iniciar_juego).pack(pady=20)
+        tk.Button(self.ventana, text='Iniciar Juego', font=("Arial", 13), command=self.iniciar_juego).pack(pady=20)
+
+        tk.Button(self.ventana, text='Ver puntajes más altos', font=("Arial", 13), command=self.mostrar_puntajes).pack(pady=10)
 
     def validar_nombre(self):
         nombre = self.entry_nombre.get().strip()
@@ -335,36 +338,35 @@ class VentanaPrincipal:
     def mostrar_puntajes(self):
         archivo_punt = Puntajes()
         puntajes = archivo_punt.puntajes
+        print(puntajes)
 
-        if not puntajes:
-            return messagebox.showinfo("Puntajes", "No hay puntajes")
+        # if not puntajes:
+        #     return messagebox.showinfo("Puntajes", "No hay puntajes")
         
-        ventana_puntajes = tk.Toplevel(self.ventana)
+        ventana_puntajes = tk.Tk()
         ventana_puntajes.title("Puntajes")
-        tk.Label("Puntajes más altos")
+        tk.Label(ventana_puntajes, text="Puntajes más altos", font=("Arial", 14))
         panel_izq = tk.Frame(ventana_puntajes).pack(side='left', fill='both', padx=(0,10))
         panel_der = tk.Frame(ventana_puntajes).pack(side='right', fill='both', padx=(0,10))
 
-        texto_esc = tk.Text(panel_izq, font=("Arial", 10, "bold")); texto_esc.pack()
-        texto_caz = tk.Text(panel_der, font=("Arial", 10, "bold")); texto_caz.pack()
-
-        texto_esc.insert("Escapistas: \n")
+        texto_esc = "Escapistas: \n"
         count = 0
-        for i, puntaje in enumerate(puntajes):
-            if puntaje['tipo'] == "1" and count!=5:
-                texto_esc.insert(f"{i+1} - {puntaje['nombre']}: {[puntaje['puntaje']]}\n")
+        for i, punt in enumerate(puntajes):
+            if punt['tipo'] == "1" and count != 5:
+                texto_esc += f"{i+1} - {punt['nombre']}: {punt['puntaje']}\n"
                 count += 1
-                break
-            break
+        texto_esc = "No hay escapistas" if count == 0 else texto_esc
 
-        texto_caz.insert("Cazadores: \n")
+        texto_caz = "Cazadores: \n"
         count = 0
-        for j, puntaje in enumerate(puntajes):
-            if puntaje['tipo'] == "2" and count!=5:
-                texto_caz.insert(f"{j+1} - {puntaje['nombre']}: {[puntaje['puntaje']]}\n")
+        for i, punt in enumerate(puntajes):
+            if punt['tipo'] == "2" and count != 5:
+                texto_caz += f"{i+1} - {punt['nombre']}: {punt['puntaje']}\n"
                 count += 1
-                break
-            break
+        texto_caz = "No hay cazadores" if count == 0 else texto_caz
+                
+        tk.Label(panel_izq, text=texto_esc, font=("Arial", 11)).pack(pady=5)
+        tk.Label(panel_der, text=texto_caz, font=("Arial", 11)).pack(pady=5)
 
 
     def ejecutar(self):
