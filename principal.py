@@ -14,27 +14,38 @@ class Puntajes:
         self.cargar_punt()
     
     def cargar_punt(self):
+        # Intentamos cargar la lista de puntajes desde el archivo JSON.
+        # Si el archivo no existe o está mal formado, dejamos la lista vacía.
         try:
             with open(self.archivo, 'r', encoding='utf-8') as a:
                 self.puntajes = json.load(a)
-        except:
-            True
+        except Exception:
+            # No hacemos un crash: simplemente inicializamos una lista vacía.
+            # (Usamos excepción genérica por simplicidad en este proyecto pequeño.)
+            self.puntajes = []
     
     def guardar_punt(self):
+        # Guardamos la lista de puntajes en formato JSON legible.
+        # Si ocurre un error de I/O mostramos un mensaje al usuario.
         try:
-            with open(self.archivo, 'w') as a:
-                    json.dump(self.puntajes, a, indent=4)
-        except:
+            with open(self.archivo, 'w', encoding='utf-8') as a:
+                json.dump(self.puntajes, a, indent=4, ensure_ascii=False)
+        except Exception:
             messagebox.showerror("Error", "Error al guardar puntajes")
 
     def agregar_punt(self, nombre, puntaje, tipo):
+        # Construimos un registro de puntaje con los campos esperados
+        # y lo añadimos a la lista. Luego ordenamos en forma descendente
+        # por 'puntaje' para mantener los mejores arriba.
         nuevo = {
             "nombre": nombre,
             "puntaje": puntaje,
             "tipo": tipo
         }
         self.puntajes.append(nuevo)
+        # Orden descendente: los puntajes más altos primero
         self.puntajes.sort(key=lambda x: x['puntaje'], reverse=True)
+        # Persistimos el cambio en disco
         self.guardar_punt()
 
 
@@ -98,13 +109,20 @@ class Jugador:
         self.corriendo = False
     
     def mover(self, mx, my, mapa):
-        px = self.x + mx # px es la posición en la que va a quedar x
-        py = self.y + my # py es la posición en la que va a quedar y
-        
+        # mx, my son desplazamientos en celdas (p.ej. (-1,0) mover a la izquierda)
+        # Calculamos la posición objetivo (px, py) a partir de la posición actual.
+        px = self.x + mx
+        py = self.y + my
+
+        # Preguntamos al mapa si el jugador puede pasar a esa casilla.
+        # Si está permitido, actualizamos la posición del jugador.
         if mapa.jugador_pasa(px, py):
             self.x = px
             self.y = py
 
+            # Si el jugador va corriendo, consumir energía por el movimiento.
+            # La lógica actual resta 1 por cada movimiento cuando corriendo y
+            # la energía es mayor que 0.
             if self.corriendo and self.energia > 0:
                 self.energia -= 1
 
@@ -134,18 +152,35 @@ class Enemigo:
         self.timeout = 0
 
     def perseguir(self, pos_jug_x, pos_jug_y, mapa):
+        """
+        Lógica de persecución simple:
+
+        - Calcula la diferencia en x (dx) y en y (dy) entre el enemigo y el jugador.
+        - Decide priorizar el eje con mayor distancia absoluta (si dx es mayor que dy,
+          intenta moverse horizontalmente; si no, verticalmente).
+        - Para moverse en una dirección comprueba con `mapa.enemigo_pasa(...)`
+          si la casilla destino permite al enemigo pasar antes de cambiar coordenadas.
+
+        Nota: este método implementa una heurística sencilla y no es un algoritmo
+        de pathfinding (p. ej. A*). Simplemente intenta acercarse moviéndose
+        en el eje más grande y comprobando colisiones/permitido por el mapa.
+        """
         dx = pos_jug_x - self.x
         dy = pos_jug_y - self.y
 
+        # Si la diferencia horizontal es mayor, intentar mover en x primero
         if abs(dx) > abs(dy):
-            if dx > 0 and mapa.enemigo_pasa(self.x +1, self.y):
+            # if dx > 0 -> jugador está a la derecha, intentar ir a la derecha
+            if dx > 0 and mapa.enemigo_pasa(self.x + 1, self.y):
                 self.x += 1
-            elif dx > 0 and mapa.enemigo_pasa(self.x -1, self.y):
+            # else si no puede ir a la derecha, intentar izquierda
+            elif dx < 0 and mapa.enemigo_pasa(self.x - 1, self.y):
                 self.x -= 1
         else:
-            if dx > 0 and mapa.enemigo_pasa(self.x, self.y +1):
+            # Priorizar movimiento vertical
+            if dy > 0 and mapa.enemigo_pasa(self.x, self.y + 1):
                 self.y += 1
-            elif dx > 0 and mapa.enemigo_pasa(self.x, self.y -1):
+            elif dy < 0 and mapa.enemigo_pasa(self.x, self.y - 1):
                 self.y -= 1
 
     def escapar(self, pos_jug_x,  pos_jug_y, mapa):
@@ -185,13 +220,16 @@ class Mapa:
             self.espacios.append(fila)
 
     def jugador_pasa(self, x, y):
-        if 0 <= x < self.ancho and 0 <= y < self.alto:
-            terreno = self.obtener_terreno(x,y)
-            return terreno.jugador_pasa()
-        return False
+        """
+        Comprueba si el jugador puede entrar en la casilla (x, y).
 
-    def jugador_pasa(self, x, y):
-        if 0<=x < self.ancho and 0<=y < self.alto:
+        - Primero valida que (x,y) esté dentro de los límites del mapa.
+        - Si está dentro, delega en el objeto `Espacio` correspondiente
+          llamando a su método `jugador_pasa()` (cada tipo de espacio
+          define si el jugador puede pasar o no).
+        - Si está fuera de límites, devuelve False.
+        """
+        if 0 <= x < self.ancho and 0 <= y < self.alto:
             return self.espacios[y][x].jugador_pasa()
         return False
     
@@ -243,22 +281,28 @@ class Juego:
         if self.juego_termi:
             return
         self.tiempo = pygame.time.get_ticks() - self.tiempo_ini
-
+        # Actualizamos el tiempo de juego en milisegundos
         entradas = pygame.key.get_pressed()
+
+        # El jugador corre si mantiene presionada la tecla izquierda SHIFT
         self.jugador.corriendo = entradas[pygame.K_LSHIFT]
 
+        # Movimiento por teclas: WASD o flechas
         if entradas[pygame.K_w] or entradas[pygame.K_UP]:
-            self.jugador.mover(0,-1, self.mapa)
+            self.jugador.mover(0, -1, self.mapa)
         if entradas[pygame.K_s] or entradas[pygame.K_DOWN]:
-            self.jugador.mover(0,1, self.mapa)
+            self.jugador.mover(0, 1, self.mapa)
         if entradas[pygame.K_d] or entradas[pygame.K_RIGHT]:
-            self.jugador.mover(1,0, self.mapa)
+            self.jugador.mover(1, 0, self.mapa)
         if entradas[pygame.K_a] or entradas[pygame.K_LEFT]:
-            self.jugador.mover(-1,0, self.mapa)
-        
-            
+            self.jugador.mover(-1, 0, self.mapa)
+
+        # Regeneración pasiva de energía cuando no se corre (por frame)
         if not self.jugador.corriendo and self.jugador.energia < 100:
+            # Se suma 0.5 por frame; con 60 FPS serían ~30 puntos por segundo
             self.jugador.energia += 0.5
+
+        # Comprobar si el jugador llegó a la salida
         if self.verificar_salida():
             self.finalizar()
         
@@ -282,6 +326,14 @@ class Juego:
             puntaje = self.calcular_puntaje()
             texto_puntaje = self.texto_pygame.render(f"{puntaje}", True, "#ffffff")
             self.pantalla.blit(texto_puntaje, (ANCHO_VEN//2, ALTO_VEN//2-40))
+
+        # Descripción de dibujo:
+        # - Se limpia la pantalla con negro.
+        # - Se dibuja el mapa (cada `Espacio` dibuja su rectángulo).
+        # - Se dibuja el jugador como un círculo en su posición.
+        # - Se muestra la barra de energía en la esquina superior izquierda.
+        # - Si el juego terminó con victoria, se sobrepone una pantalla
+        #   de victoria con texto y el puntaje obtenido.
 
 
         pygame.display.flip()
@@ -338,10 +390,6 @@ class VentanaPrincipal:
     def mostrar_puntajes(self):
         archivo_punt = Puntajes()
         puntajes = archivo_punt.puntajes
-        print(puntajes)
-
-        # if not puntajes:
-        #     return messagebox.showinfo("Puntajes", "No hay puntajes")
         
         ventana_puntajes = tk.Tk()
         ventana_puntajes.title("Puntajes")
