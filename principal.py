@@ -100,7 +100,7 @@ class Tunel(Espacio):
         super().__init__(x,y)
         self.color = "#b66c2f"
     
-    def enemigo_pasa(self):
+    def enemigo_pasa(self): #los enemigos no pueden pasar por túneles
         return False
 
 
@@ -187,6 +187,16 @@ class Enemigo:
             elif dy < 0 and mapa.enemigo_pasa(self.x, self.y - 1):
                 self.y -= 1
 
+    def actualizar_persecucion(self, pos_jug_x, pos_jug_y, mapa):
+        if not self.vivo:
+            return
+        
+        if self.timeout > 0:
+            self.timeout -= 1
+        else:
+            self.perseguir(pos_jug_x, pos_jug_y, mapa)
+            self.timeout = self.vel
+
     def escapar(self, pos_jug_x,  pos_jug_y, mapa):
         dx = self.x - pos_jug_x 
         dy = self.y - pos_jug_y 
@@ -265,6 +275,8 @@ class Juego:
         self.running = True
         self.jugador = Jugador(1,1,nombre)
         self.enemigos = [] #lista para almacenar enemigos
+        self.persecucion_activa = False
+        self.se_movio = False
         self.tipo = tipo
         self.tiempo_ini = pygame.time.get_ticks()
         self.tiempo = 0
@@ -277,14 +289,14 @@ class Juego:
         pygame.display.set_caption("Escapa del laberinto")
     
     
-    def crear_enemigos(self, cantidad=3):
+    def crear_enemigos(self, cantidad=1): #Se inicializa la cantidad de enemigos en 1 para hacer las pruebas
         for _ in range(cantidad):
             while True:
-                x = random.randint(1, self.mapa.ancho - 2)
-                y = random.randint(1, self.mapa.alto - 2)
-                if (x, y) != (self.jugador.x, self.jugador.y) and (x, y) != self.mapa.salida:
+                x = random.randint(1, self.mapa.ancho - 2) #evita que se creen enemigos en los bordes del mapa
+                y = random.randint(1, self.mapa.alto - 2) #evita que se creen enemigos en los bordes del mapa
+                if (x, y) != (self.jugador.x, self.jugador.y) and (x, y) != self.mapa.salida: #verifica que no se cree un enemigo en la posicion del jugador o en la salida
                     if self.mapa.enemigo_pasa(x,y):
-                        enemigo = Enemigo(x, y, vel = 1)
+                        enemigo = Enemigo(x, y, vel = 10)
                         self.enemigos.append(enemigo)
                         break
 
@@ -317,7 +329,11 @@ class Juego:
         entradas = pygame.key.get_pressed()
 
         # El jugador corre si mantiene presionada la tecla izquierda SHIFT
-        self.jugador.corriendo = entradas[pygame.K_LSHIFT]
+        self.jugador.corriendo = entradas[pygame.K_LSHIFT] or entradas[pygame.K_RSHIFT] #se agrega la tecla derecha SHIFT para correr
+
+        #Se guarda la posicion inicial del jugador antes de moverse
+        primera_x = self.jugador.x
+        primera_y = self.jugador.y
 
         # Movimiento por teclas: WASD o flechas
         if entradas[pygame.K_w] or entradas[pygame.K_UP]:
@@ -329,14 +345,40 @@ class Juego:
         if entradas[pygame.K_a] or entradas[pygame.K_LEFT]:
             self.jugador.mover(-1, 0, self.mapa)
 
+        if (self.jugador.x, self.jugador.y)!= (primera_x, primera_y):
+            self.se_movio = True
+
         # Regeneración pasiva de energía cuando no se corre (por frame)
         if not self.jugador.corriendo and self.jugador.energia < 100:
             # Se suma 0.5 por frame; con 60 FPS serían ~30 puntos por segundo
             self.jugador.energia += 0.5
 
+
+        if self.tipo == "1" and self.se_movio:
+            self.persecucion_activa = True
+
+        # movimiento de los enemigos 
+        if self.tipo == "1" and self.persecucion_activa:  # solo en modo escapista
+            for enemigo in self.enemigos:
+                enemigo.actualizar_persecucion(self.jugador.x, self.jugador.y, self.mapa)
+
+       
+
+
+        # comprueba la colision entre los jugadores y los enemigos
+        if self.tipo == "1":
+            for enemigo in self.enemigos:
+                if enemigo.vivo and (enemigo.x, enemigo.y) == (self.jugador.x, self.jugador.y):
+                    self.perder()
+                    break
+
         # Comprobar si el jugador llegó a la salida
         if self.verificar_salida():
             self.finalizar()
+    
+    def perder(self):
+        self.juego_termi = True
+        self.juego_ganad = False
         
 
     def dibujar(self):
@@ -361,6 +403,15 @@ class Juego:
             texto_puntaje = self.texto_pygame.render(f"{puntaje}", True, "#ffffff")
             self.pantalla.blit(texto_puntaje, (ANCHO_VEN//2, ALTO_VEN//2-40))
 
+
+        # se genera un mensaje de derrota si el jugador es atrapado por un enemigo
+        elif self.juego_termi and not self.juego_ganad:
+            pantalla_derrota = pygame.Surface((ANCHO_VEN, ALTO_VEN))
+            pantalla_derrota.fill("#000000")
+            self.pantalla.blit(pantalla_derrota,(0,0))
+
+            texto_derrota = self.texto_pygame.render("Te han atrapado :(", True, "#ff0000")
+            self.pantalla.blit(texto_derrota, (ANCHO_VEN//2 - 100, ALTO_VEN//2))
         # Descripción de dibujo:
         # - Se limpia la pantalla con negro.
         # - Se dibuja el mapa (cada `Espacio` dibuja su rectángulo).
