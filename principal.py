@@ -99,6 +99,10 @@ class Tunel(Espacio):
     def __init__(self, x, y):
         super().__init__(x,y)
         self.color = "#b66c2f"
+    
+    def enemigo_pasa(self):
+        return False
+
 
 class Jugador:
     def __init__(self, x, y, nombre):
@@ -233,6 +237,20 @@ class Mapa:
             return self.espacios[y][x].jugador_pasa()
         return False
     
+    def enemigo_pasa(self, x, y):
+        """
+        Comprueba si un enemigo puede entrar en la casilla (x, y).
+
+        - Valida que (x, y) esté dentro de los límites del mapa.
+        - Si está dentro, pregunta al Espacio correspondiente si el enemigo
+          puede pasar (enemigo_pasa()).
+        - Si está fuera, devuelve False.
+        """
+        if 0 <= x < self.ancho and 0 <= y < self.alto:
+            return self.espacios[y][x].enemigo_pasa()
+        return False
+    
+    
     def dibujar(self, pantalla):
         for fila in self.espacios:
             for espacio in fila:
@@ -246,15 +264,29 @@ class Juego:
         self.reloj = pygame.time.Clock()
         self.running = True
         self.jugador = Jugador(1,1,nombre)
+        self.enemigos = [] #lista para almacenar enemigos
         self.tipo = tipo
         self.tiempo_ini = pygame.time.get_ticks()
         self.tiempo = 0
         self.mapa = Mapa(20,15)
+        self.crear_enemigos()
         self.juego_termi = False
         self.juego_ganad = False
         self.puntajes = Puntajes()
     
         pygame.display.set_caption("Escapa del laberinto")
+    
+    
+    def crear_enemigos(self, cantidad=3):
+        for _ in range(cantidad):
+            while True:
+                x = random.randint(1, self.mapa.ancho - 2)
+                y = random.randint(1, self.mapa.alto - 2)
+                if (x, y) != (self.jugador.x, self.jugador.y) and (x, y) != self.mapa.salida:
+                    if self.mapa.enemigo_pasa(x,y):
+                        enemigo = Enemigo(x, y, vel = 1)
+                        self.enemigos.append(enemigo)
+                        break
 
     def verificar_salida(self):
         if (self.jugador.x, self.jugador.y) == self.mapa.salida:
@@ -311,6 +343,8 @@ class Juego:
         self.pantalla.fill("#000000")
         self.mapa.dibujar(self.pantalla)
         self.jugador.dibujar(self.pantalla)
+        for enemigo in self.enemigos:
+            pygame.draw.circle(self.pantalla, '#ff0000', ((enemigo.x * TAMANO_ESPACIO)+(TAMANO_ESPACIO // 2), (enemigo.y * TAMANO_ESPACIO)+ (TAMANO_ESPACIO // 2)), TAMANO_ESPACIO//3)
         self.texto_pygame = pygame.font.Font(None, 28)
 
         pygame.draw.rect(self.pantalla, "#ff0000", (10,10, int(self.jugador.energia*2), 20))
