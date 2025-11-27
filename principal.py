@@ -154,6 +154,7 @@ class Enemigo:
         self.vel = vel
         self.vivo = True
         self.timeout = 0
+        self.tiempo_muerte = None
 
     def perseguir(self, pos_jug_x, pos_jug_y, mapa):
         """
@@ -275,8 +276,13 @@ class Juego:
         self.running = True
         self.jugador = Jugador(1,1,nombre)
         self.enemigos = [] #lista para almacenar enemigos
+        self.trampas = [] #lista para almacenar trampas
+        self.bono_puntos = 0 # bono de puntos por cada enemigo atrapado
+        self.ultima_trampa = None
+        self.enemigos_reaparecer = [] #lista para almacenar enemigos que deben reaparecer
         self.persecucion_activa = False
-        self.se_movio = False
+        self.se_movio = False # bandera para saber si el jugador se ha movido
+        self.cooldown_mov = 0
         self.tipo = tipo
         self.tiempo_ini = pygame.time.get_ticks()
         self.tiempo = 0
@@ -306,7 +312,7 @@ class Juego:
         return False
     
     def calcular_puntaje(self):
-        return 100 - (self.tiempo/1000)
+        return 100 - (self.tiempo/1000) + self.bono_puntos
 
     def finalizar(self):
         self.juego_termi = True
@@ -331,29 +337,45 @@ class Juego:
         # El jugador corre si mantiene presionada la tecla izquierda SHIFT
         self.jugador.corriendo = entradas[pygame.K_LSHIFT] or entradas[pygame.K_RSHIFT] #se agrega la tecla derecha SHIFT para correr
 
+        # Cooldown para el movimiento
+        if self.cooldown_mov > 0:
+            self.cooldown_mov -= 1
+
         #Se guarda la posicion inicial del jugador antes de moverse
-        primera_x = self.jugador.x
-        primera_y = self.jugador.y
+        pos_inicial = (self.jugador.x, self.jugador.y)
 
-        # Movimiento por teclas: WASD o flechas
-        if entradas[pygame.K_w] or entradas[pygame.K_UP]:
-            self.jugador.mover(0, -1, self.mapa)
-        if entradas[pygame.K_s] or entradas[pygame.K_DOWN]:
-            self.jugador.mover(0, 1, self.mapa)
-        if entradas[pygame.K_d] or entradas[pygame.K_RIGHT]:
-            self.jugador.mover(1, 0, self.mapa)
-        if entradas[pygame.K_a] or entradas[pygame.K_LEFT]:
-            self.jugador.mover(-1, 0, self.mapa)
+        se_movio_este_frame = False
 
-        if (self.jugador.x, self.jugador.y)!= (primera_x, primera_y):
-            self.se_movio = True
+        if self.cooldown_mov == 0:
+            se_movio_este_frame = False
+
+        # solo se puede mover si el cooldown llego a 0 
+        if self.cooldown_mov == 0:
+            # Movimiento por teclas: WASD o flechas
+            if entradas[pygame.K_w] or entradas[pygame.K_UP]:
+                self.jugador.mover(0, -1, self.mapa)
+                se_movio_este_frame = True
+            if entradas[pygame.K_s] or entradas[pygame.K_DOWN]:
+                self.jugador.mover(0, 1, self.mapa)
+                se_movio_este_frame = True
+            if entradas[pygame.K_d] or entradas[pygame.K_RIGHT]:
+                self.jugador.mover(1, 0, self.mapa)
+                se_movio_este_frame = True
+            if entradas[pygame.K_a] or entradas[pygame.K_LEFT]:
+                self.jugador.mover(-1, 0, self.mapa)
+                se_movio_este_frame = True
+
+            if se_movio_este_frame and (self.jugador.x, self.jugador.y) != pos_inicial:
+                self.se_movio = True        
+                self.persecucion_activa = True
+                self.cooldown_mov = 6 
 
         # Regeneración pasiva de energía cuando no se corre (por frame)
         if not self.jugador.corriendo and self.jugador.energia < 100:
             # Se suma 0.5 por frame; con 60 FPS serían ~30 puntos por segundo
             self.jugador.energia += 0.5
 
-
+        # activar persecucion si el jugador se ha movido
         if self.tipo == "1" and self.se_movio:
             self.persecucion_activa = True
 
@@ -361,8 +383,61 @@ class Juego:
         if self.tipo == "1" and self.persecucion_activa:  # solo en modo escapista
             for enemigo in self.enemigos:
                 enemigo.actualizar_persecucion(self.jugador.x, self.jugador.y, self.mapa)
+        # determinar si se puede colocar una trampa
+        if self.tipo == "1":
+            if self.ultima_trampa is None: 
+                puede_colocar = True
+            else:
+                puede_colocar = (self.tiempo - self.ultima_trampa) >= 5000  # 5 segundos de cooldown
 
+            hay_espacio = (len(self.trampas) < 3)  # máximo 3 trampas activas
+
+            if puede_colocar and hay_espacio and entradas[pygame.K_SPACE]:
+                px = self.jugador.x
+                py = self.jugador.y
+                if self.mapa.enemigo_pasa(px,py):
+                    self.trampas.append(Trampa(px, py, self.tiempo))
+                    self.ultima_trampa = self.tiempo
+
+        # Actualizar trampas y verificar si algún enemigo cae en una trampa
+        nuevas_trampas = []
+        for trampa in self.trampas:
+            if trampa.eliminada:
+                continue
+
+            enemigo_muerto = False
+            for enemigo in self.enemigos:
+                if enemigo.vivo and (enemigo.x, enemigo.y) == (trampa.x, trampa.y):
+                    enemigo.vivo = False
+                    trampa.eliminada = True 
+                    enemigo_muerto = True
+                    self.bono_puntos += 5 # bono de puntos por matar un cazador
+
+                    self.enemigos_reaparecer.append([enemigo, self.tiempo + 10000]) # el enemigo reaparecera en 10 segundos
+
+            if not trampa.eliminada: # la trampa sigue activa
+                nuevas_trampas.append(trampa)
+        self.trampas = nuevas_trampas
+
+
+        nuevos_respawn = []
+        for enemigo, t_respawn in self.enemigos_reaparecer:
+            if self.tiempo >= t_respawn:
+                while True:
+                    x = random.randint(1, self.mapa.ancho - 2)
+                    y = random.randint(1, self.mapa.alto - 2)
+                    if (x, y) != (self.jugador.x, self.jugador.y) and (x, y) != self.mapa.salida:
+                        if self.mapa.enemigo_pasa(x,y):
+                            enemigo.x = x
+                            enemigo.y = y
+                            enemigo.vivo = True
+                            break
+            else:
+                nuevos_respawn.append([enemigo, t_respawn])
+        self.enemigos_reaparecer = nuevos_respawn
        
+
+
 
 
         # comprueba la colision entre los jugadores y los enemigos
@@ -385,8 +460,11 @@ class Juego:
         self.pantalla.fill("#000000")
         self.mapa.dibujar(self.pantalla)
         self.jugador.dibujar(self.pantalla)
+        for trampa in self.trampas:
+            trampa.dibujar(self.pantalla)
         for enemigo in self.enemigos:
-            pygame.draw.circle(self.pantalla, '#ff0000', ((enemigo.x * TAMANO_ESPACIO)+(TAMANO_ESPACIO // 2), (enemigo.y * TAMANO_ESPACIO)+ (TAMANO_ESPACIO // 2)), TAMANO_ESPACIO//3)
+            if enemigo.vivo:
+                pygame.draw.circle(self.pantalla, '#ff0000', ((enemigo.x * TAMANO_ESPACIO)+(TAMANO_ESPACIO // 2), (enemigo.y * TAMANO_ESPACIO)+ (TAMANO_ESPACIO // 2)), TAMANO_ESPACIO//3)
         self.texto_pygame = pygame.font.Font(None, 28)
 
         pygame.draw.rect(self.pantalla, "#ff0000", (10,10, int(self.jugador.energia*2), 20))
@@ -431,6 +509,19 @@ class Juego:
             self.reloj.tick(60)
         
         pygame.quit()
+
+class Trampa:
+    def __init__(self, x, y, tiempo_colocada):
+        self.x = x
+        self.y = y
+        self.tiempo_colocada = tiempo_colocada
+        self.eliminada = False
+        self.activa = True
+
+    def dibujar(self, pantalla):
+        pygame.draw.rect(pantalla, "#ff8800", (self.x * TAMANO_ESPACIO, self.y * TAMANO_ESPACIO, TAMANO_ESPACIO, TAMANO_ESPACIO))
+        pygame.draw.rect(pantalla, "#000000", (self.x * TAMANO_ESPACIO, self.y * TAMANO_ESPACIO, TAMANO_ESPACIO, TAMANO_ESPACIO), 1)
+
 
 class VentanaPrincipal:
     def __init__(self):
