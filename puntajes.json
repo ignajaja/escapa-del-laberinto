@@ -1,7 +1,17 @@
 [
     {
         "nombre": "NOM",
+        "puntaje": 222.34199999999998,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
         "puntaje": 180.739,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 179.993,
         "tipo": "3"
     },
     {
@@ -21,12 +31,27 @@
     },
     {
         "nombre": "NOM",
+        "puntaje": 97.365,
+        "tipo": "1"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.833,
+        "tipo": "1"
+    },
+    {
+        "nombre": "NOM",
         "puntaje": 96.746,
         "tipo": "2"
     },
     {
         "nombre": "NOM",
         "puntaje": 96.671,
+        "tipo": "1"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.543,
         "tipo": "1"
     },
     {
@@ -181,6 +206,11 @@
     },
     {
         "nombre": "NOM",
+        "puntaje": 94.984,
+        "tipo": "1"
+    },
+    {
+        "nombre": "NOM",
         "puntaje": 93.839,
         "tipo": "1"
     },
@@ -201,6 +231,11 @@
     },
     {
         "nombre": "NOM",
+        "puntaje": 92.758,
+        "tipo": "1"
+    },
+    {
+        "nombre": "NOM",
         "puntaje": 92.42699999999999,
         "tipo": "3"
     },
@@ -217,6 +252,11 @@
     {
         "nombre": "jos",
         "puntaje": 88.257,
+        "tipo": "1"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 84.128,
         "tipo": "1"
     },
     {

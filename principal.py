@@ -159,6 +159,15 @@ class Enemigo:
         self.vivo = True
         self.timeout = 0
         self.tiempo_muerte = None
+    
+    def mover_hacia_objetivo(self, tx, ty, mapa):
+        opciones = [(self.x + 1, self. y), (self.x - 1, self.y), (self.x, self.y + 1), (self.x, self.y - 1)]
+        opciones.sort(key=lambda pos: (pos[0] - tx) ** 2 + (pos[1] - ty) ** 2)
+        for nx, ny in opciones:
+            if mapa.enemigo_pasa(nx, ny):
+                self.x = nx
+                self.y = ny
+                break
 
     def perseguir(self, pos_jug_x, pos_jug_y, mapa):
         """
@@ -174,23 +183,7 @@ class Enemigo:
         de pathfinding (p. ej. A*). Simplemente intenta acercarse moviéndose
         en el eje más grande y comprobando colisiones/permitido por el mapa.
         """
-        dx = pos_jug_x - self.x
-        dy = pos_jug_y - self.y
-
-        # Si la diferencia horizontal es mayor, intentar mover en x primero
-        if abs(dx) > abs(dy):
-            # if dx > 0 -> jugador está a la derecha, intentar ir a la derecha
-            if dx > 0 and mapa.enemigo_pasa(self.x + 1, self.y):
-                self.x += 1
-            # else si no puede ir a la derecha, intentar izquierda
-            elif dx < 0 and mapa.enemigo_pasa(self.x - 1, self.y):
-                self.x -= 1
-        else:
-            # Priorizar movimiento vertical
-            if dy > 0 and mapa.enemigo_pasa(self.x, self.y + 1):
-                self.y += 1
-            elif dy < 0 and mapa.enemigo_pasa(self.x, self.y - 1):
-                self.y -= 1
+        self.mover_hacia_objetivo(pos_jug_x, pos_jug_y, mapa)
 
     def escapar(self, pos_jug_x, pos_jug_y, mapa):
         """
@@ -203,17 +196,7 @@ class Enemigo:
         # obtener la salida desde el mapa que se pasó como parámetro
         sx, sy = mapa.get_salida()
 
-        # mover en el eje x hacia la salida si es posible
-        if self.x < sx and mapa.enemigo_pasa(self.x + 1, self.y):
-            self.x += 1
-        elif self.x > sx and mapa.enemigo_pasa(self.x - 1, self.y):
-            self.x -= 1
-
-        # mover en el eje y hacia la salida si es posible
-        if self.y < sy and mapa.enemigo_pasa(self.x, self.y + 1):
-            self.y += 1
-        elif self.y > sy and mapa.enemigo_pasa(self.x, self.y - 1):
-            self.y -= 1
+        self.mover_hacia_objetivo(sx, sy, mapa)
               
 
     def actualizar_persecucion(self, pos_jug_x, pos_jug_y, mapa):
@@ -255,15 +238,6 @@ class Enemigo:
         else:
             self.escapar(pos_jug_x, pos_jug_y, mapa)
             self.timeout = self.vel
-
-        
-"""
-por hacer:
-que sean 5 vidas
-si lo agarra suma 30
-si se escapa gana 15
-mostrar puntajes y opcion salir
-"""
 
 class Mapa:
     def __init__(self, ancho = ANCHO_VEN, alto = ALTO_VEN):
@@ -357,7 +331,10 @@ class Juego:
         self.juego_termi = False
         self.juego_ganad = False
         self.puntajes = Puntajes()
-    
+        self.boton_menu_reactivo = None
+        self.volver_menu = False
+
+
         pygame.display.set_caption("Escapa del laberinto")
     
     
@@ -393,6 +370,11 @@ class Juego:
         for evento in pygame.event.get():
             if evento.type ==pygame.QUIT:
                 self.running = False
+            
+            if self.juego_termi and evento.type == pygame.MOUSEBUTTONDOWN: # detectar clic en botón de volver al menú
+                if self.boton_menu_reactivo is not None and self.boton_menu_reactivo.collidepoint(evento.pos):
+                    self.running = False
+                    self.volver_menu = True # marcar para volver al menú principal
 
     def actualizar(self):
         if self.juego_termi:
@@ -608,6 +590,18 @@ class Juego:
             texto_puntaje = self.texto_pygame.render(f"{puntaje}", True, "#ffffff")
             self.pantalla.blit(texto_puntaje, (ANCHO_VEN//2, ALTO_VEN//2-40))
 
+            ancho_boton = 220
+            alto_boton = 50
+            x_boton = ANCHO_VEN//2 - ancho_boton//2
+            y_boton = ALTO_VEN//2 + 20
+            self.boton_menu_reactivo = pygame.Rect(x_boton, y_boton, ancho_boton, alto_boton)
+
+            pygame.draw.rect(self.pantalla, "#444444", self.boton_menu_reactivo)
+            pygame.draw.rect(self.pantalla, "#ffffff", self.boton_menu_reactivo, 2)
+
+            texto_boton = self.texto_pygame.render("Volver al menú principal", True, "#ffffff")
+            self.pantalla.blit(texto_boton, (x_boton + 15, y_boton + 10))
+
 
         # se genera un mensaje de derrota si el jugador es atrapado por un enemigo
         elif self.juego_termi and not self.juego_ganad:
@@ -617,6 +611,20 @@ class Juego:
 
             texto_derrota = self.texto_pygame.render("Haz perdido", True, "#ff0000")
             self.pantalla.blit(texto_derrota, (ANCHO_VEN//2 - 100, ALTO_VEN//2))
+
+            ancho_boton = 260
+            alto_boton = 50
+            x_boton = ANCHO_VEN//2 - ancho_boton//2 
+            y_boton = ALTO_VEN//2 + 20
+            self.boton_menu_reactivo = pygame.Rect(x_boton, y_boton, ancho_boton, alto_boton)
+
+            pygame.draw.rect(self.pantalla, "#444444", self.boton_menu_reactivo)
+            pygame.draw.rect(self.pantalla, "#ffffff", self.boton_menu_reactivo, 2)
+
+            texto_boton = self.texto_pygame.render("Volver al menú principal", True, "#ffffff")
+            self.pantalla.blit(texto_boton, (x_boton + 15, y_boton + 10))   
+
+
         # Descripción de dibujo:
         # - Se limpia la pantalla con negro.
         # - Se dibuja el mapa (cada `Espacio` dibuja su rectángulo).
@@ -636,6 +644,9 @@ class Juego:
             self.reloj.tick(60)
         
         pygame.quit()
+
+        if self.volver_menu: #esto es para que si lee el volver al menú que se devuelva a la pagina principal
+            iniciar()
 
 class Trampa:
     def __init__(self, x, y, tiempo_colocada):
