@@ -1,47 +1,157 @@
 [
     {
-        "nombre": "Jug",
-        "puntaje": 995.58,
-        "tipo": "1"
-    },
-    {
         "nombre": "NOM",
-        "puntaje": 994.383,
-        "tipo": "1"
-    },
-    {
-        "nombre": "caz",
-        "puntaje": 992.383,
+        "puntaje": 96.746,
         "tipo": "2"
     },
     {
         "nombre": "NOM",
-        "puntaje": 987.6,
+        "puntaje": 96.465,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 96.465,
+        "tipo": "3"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 95.881,
+        "tipo": "3"
+    },
+    {
+        "nombre": "JUG",
+        "puntaje": 93.188,
         "tipo": "1"
     },
     {
         "nombre": "NOM",
-        "puntaje": 97.841,
+        "puntaje": 91.663,
+        "tipo": "2"
+    },
+    {
+        "nombre": "NOM",
+        "puntaje": 91.086,
+        "tipo": "3"
+    },
+    {
+        "nombre": "jos",
+        "puntaje": 88.257,
         "tipo": "1"
     },
     {
         "nombre": "NOM",
-        "puntaje": 95.55199999999999,
-        "tipo": "1"
-    },
-    {
-        "nombre": "NOM",
-        "puntaje": 92.908,
-        "tipo": "1"
-    },
-    {
-        "nombre": "NOM",
-        "puntaje": 90.975,
-        "tipo": "1"
-    },
-    {
-        "nombre": "NOM",
-        "puntaje": 87.401,
-        "tipo": "1"
+        "puntaje": 81.082,
+        "tipo": "3"
     }
 ]

@@ -48,6 +48,10 @@ class Puntajes:
         # Persistimos el cambio en disco
         self.guardar_punt()
 
+    def reiniciar_puntajes(self):
+        self.puntajes = []
+        self.guardar_punt()
+
 
 class Espacio:
     def __init__(self, x, y):
@@ -188,6 +192,33 @@ class Enemigo:
             elif dy < 0 and mapa.enemigo_pasa(self.x, self.y - 1):
                 self.y -= 1
 
+    def escapar(self, pos_jug_x, pos_jug_y, mapa):
+        """
+        Movimiento simple hacia la salida.
+
+        Nota: no modificamos el estado global del juego desde aquí. El
+        objeto `Juego` será el responsable de comprobar colisiones y
+        decidir el resultado final (jugador gana / enemigo gana).
+        """
+        dx = self.x - pos_jug_x
+        dy = self.y - pos_jug_y
+
+        # obtener la salida desde el mapa que se pasó como parámetro
+        sx, sy = mapa.get_salida()
+
+        # mover en el eje x hacia la salida si es posible
+        if dx < sx and mapa.enemigo_pasa(self.x + 1, self.y):
+            self.x += 1
+        elif dx > sx and mapa.enemigo_pasa(self.x - 1, self.y):
+            self.x -= 1
+
+        # mover en el eje y hacia la salida si es posible
+        if dy < sy and mapa.enemigo_pasa(self.x, self.y + 1):
+            self.y += 1
+        elif dy > sy and mapa.enemigo_pasa(self.x, self.y - 1):
+            self.y -= 1
+              
+
     def actualizar_persecucion(self, pos_jug_x, pos_jug_y, mapa):
         if not self.vivo:
             return
@@ -198,14 +229,47 @@ class Enemigo:
             self.perseguir(pos_jug_x, pos_jug_y, mapa)
             self.timeout = self.vel
 
-    def escapar(self, pos_jug_x,  pos_jug_y, mapa):
-        dx = self.x - pos_jug_x 
-        dy = self.y - pos_jug_y 
+    def actualizar_persecucion_dif(self, pos_jug_x, pos_jug_y, mapa):
+        if not self.vivo:
+            return
+        
+        if self.timeout > 0:
+            self.timeout -= 30
+        else:
+            self.perseguir(pos_jug_x, pos_jug_y, mapa)
+            self.timeout = self.vel
+
+    def actualizar_escapar(self, pos_jug_x,  pos_jug_y, mapa):
+        if not self.vivo:
+            return
+        
+        if self.timeout > 0:
+            self.timeout -= 1
+        else:
+            self.escapar(pos_jug_x, pos_jug_y, mapa)
+            self.timeout = self.vel
+
+    def actualizar_escapar_dif(self, pos_jug_x,  pos_jug_y, mapa):
+        if not self.vivo:
+            return
+        
+        if self.timeout > 0:
+            self.timeout -= 30
+        else:
+            self.escapar(pos_jug_x, pos_jug_y, mapa)
+            self.timeout = self.vel
 
         
+"""
+por hacer:
+que sean 5 vidas
+si lo agarra suma 30
+si se escapa gana 15
+mostrar puntajes y opcion salir
+"""
 
 class Mapa:
-    def __init__(self, ancho, alto):
+    def __init__(self, ancho = ANCHO_VEN, alto = ALTO_VEN):
         self.ancho = ancho
         self.alto = alto
         self.espacios = []
@@ -216,9 +280,7 @@ class Mapa:
         for y in range(self.alto):
             fila = []
             for x in range(self.ancho):
-                terreno = random.randint(1,13)
-                if (x,y) == self.salida:
-                    fila.append(Salida(x,y))
+                terreno = random.randint(1,9)
                 
                 if x == 0 or x == self.ancho -1 or y == 0 or y == self.alto-1:
                     fila.append(Muro(x,y))
@@ -231,8 +293,13 @@ class Mapa:
                     fila.append(Tunel(x, y))
                 else:
                     fila.append(Camino(x, y))
+                if (x,y) == self.salida:
+                    fila.append(Salida(x,y))
 
             self.espacios.append(fila)
+
+    def get_salida(self):
+        return self.salida
 
     def jugador_pasa(self, x, y):
         """
@@ -308,7 +375,8 @@ class Juego:
 
     def verificar_salida(self):
         if (self.jugador.x, self.jugador.y) == self.mapa.salida:
-            return True
+            if self.tipo == '1' or self.tipo == '2':
+                return True
         return False
     
     def calcular_puntaje(self):
@@ -376,15 +444,19 @@ class Juego:
             self.jugador.energia += 0.5
 
         # activar persecucion si el jugador se ha movido
-        if self.tipo == "1" and self.se_movio:
+        if (self.tipo == "1" or self.tipo == "2") and self.se_movio:
             self.persecucion_activa = True
 
         # movimiento de los enemigos 
         if self.tipo == "1" and self.persecucion_activa:  # solo en modo escapista
             for enemigo in self.enemigos:
                 enemigo.actualizar_persecucion(self.jugador.x, self.jugador.y, self.mapa)
+
+        if self.tipo == "2" and self.persecucion_activa:  # solo en modo escapista
+            for enemigo in self.enemigos:
+                enemigo.actualizar_persecucion_dif(self.jugador.x, self.jugador.y, self.mapa)
         # determinar si se puede colocar una trampa
-        if self.tipo == "1":
+        if self.tipo == "1" or self.tipo == "2":
             if self.ultima_trampa is None: 
                 puede_colocar = True
             else:
@@ -398,6 +470,14 @@ class Juego:
                 if self.mapa.enemigo_pasa(px,py):
                     self.trampas.append(Trampa(px, py, self.tiempo))
                     self.ultima_trampa = self.tiempo
+
+        if self.tipo == "3" and self.persecucion_activa:  # solo en modo escapista
+            for enemigo in self.enemigos:
+                enemigo.actualizar_escapar(self.jugador.x, self.jugador.y, self.mapa)
+
+        if self.tipo == "4" and self.persecucion_activa:  # solo en modo escapista
+            for enemigo in self.enemigos:
+                enemigo.actualizar_escapar_dif(self.jugador.x, self.jugador.y, self.mapa)
 
         # Actualizar trampas y verificar si algún enemigo cae en una trampa
         nuevas_trampas = []
@@ -437,13 +517,30 @@ class Juego:
         self.enemigos_reaparecer = nuevos_respawn
        
 
-
-
-
         # comprueba la colision entre los jugadores y los enemigos
-        if self.tipo == "1":
+        if self.tipo == "1" or self.tipo == "2":
             for enemigo in self.enemigos:
                 if enemigo.vivo and (enemigo.x, enemigo.y) == (self.jugador.x, self.jugador.y):
+                    self.perder()
+                    break
+
+        # En los modos 3 y 4 el enemigo intenta escapar: si el jugador
+        # alcanza al enemigo (mismas coordenadas) entonces el enemigo
+        # pierde -> jugador gana. Si el enemigo llega a la salida,
+        # entonces el enemigo gana -> jugador pierde.
+        if self.tipo == "3" or self.tipo == "4":
+            for enemigo in self.enemigos:
+                if not enemigo.vivo:
+                    continue
+                # jugador atrapó al enemigo
+                if (enemigo.x, enemigo.y) == (self.jugador.x, self.jugador.y):
+                    # jugador gana
+                    self.finalizar()
+                    break
+                # enemigo llegó a la salida
+                sx, sy = self.mapa.get_salida()
+                if (enemigo.x, enemigo.y) == (sx, sy):
+                    # jugador pierde
                     self.perder()
                     break
 
@@ -488,7 +585,7 @@ class Juego:
             pantalla_derrota.fill("#000000")
             self.pantalla.blit(pantalla_derrota,(0,0))
 
-            texto_derrota = self.texto_pygame.render("Te han atrapado :(", True, "#ff0000")
+            texto_derrota = self.texto_pygame.render("Haz perdido", True, "#ff0000")
             self.pantalla.blit(texto_derrota, (ANCHO_VEN//2 - 100, ALTO_VEN//2))
         # Descripción de dibujo:
         # - Se limpia la pantalla con negro.
@@ -531,17 +628,21 @@ class VentanaPrincipal:
         self.ventana.title("Escapa del laberinto")
         self.mostrar()
 
+    def reset_puntajes(self):
+        Puntajes().reiniciar_puntajes()
+
 
     def mostrar(self):
         tk.Label(self.ventana,text='Escapa del laberinto', font=("Arial", 18, "bold"),fg="#000000").pack(pady=20)
         tk.Label(self.ventana,text='Ingrese su nombre para iniciar:', font=("Arial", 15, "bold"), fg="#000000").pack(pady=10)
         self.entry_nombre = tk.Entry(self.ventana, font=("Arial", 14)); self.entry_nombre.pack(pady=10); self.entry_nombre.insert(0, 'NOM')
-        tk.Label(self.ventana,text='Ingrese: \n- 1 para escapista\n- 2 para cazador  ', font=("Arial", 15, "bold"), fg="#000000").pack(pady=10)
+        tk.Label(self.ventana,text='Ingrese: \n- 1 para escapista fácil\n- 2 para escapista difícil ', font=("Arial", 15, "bold"), fg="#000000").pack(pady=10)
         self.entry_tipo = tk.Entry(self.ventana, font=("Arial", 14)); self.entry_tipo.pack(pady=10); self.entry_tipo.insert(0, '1')
         
         tk.Button(self.ventana, text='Iniciar Juego', font=("Arial", 13), command=self.iniciar_juego).pack(pady=20)
 
         tk.Button(self.ventana, text='Ver puntajes más altos', font=("Arial", 13), command=self.mostrar_puntajes).pack(pady=10)
+        tk.Button(self.ventana, text='Reiniciar puntajes', font=("Arial", 13), command=self.reset_puntajes).pack(pady=10)
 
     def validar_nombre(self):
         nombre = self.entry_nombre.get().strip()
@@ -552,8 +653,8 @@ class VentanaPrincipal:
     
     def validar_tipo(self):
         tipo = self.entry_tipo.get().strip()
-        if not (tipo == "1" or tipo == "2"):
-            messagebox.showwarning("Error", "El tipo debe ser 1 o 2")
+        if not (tipo == "1" or tipo == "2" or tipo == '3' or tipo == '4'):
+            messagebox.showwarning("Error", "El tipo debe ser 1, 2, 3 o 4")
             return False
         return True
     
@@ -576,7 +677,7 @@ class VentanaPrincipal:
         texto_esc = "Escapistas: \n"
         count = 0
         for i, punt in enumerate(puntajes):
-            if punt['tipo'] == "1" and count != 5:
+            if (punt['tipo'] == "1" or punt['tipo'] == "2") and count != 5:
                 texto_esc += f"{i+1} - {punt['nombre']}: {punt['puntaje']}\n"
                 count += 1
         texto_esc = "No hay escapistas" if count == 0 else texto_esc
@@ -584,7 +685,7 @@ class VentanaPrincipal:
         texto_caz = "Cazadores: \n"
         count = 0
         for i, punt in enumerate(puntajes):
-            if punt['tipo'] == "2" and count != 5:
+            if (punt['tipo'] == "3" or punt['tipo'] == "4") and count != 5:
                 texto_caz += f"{i+1} - {punt['nombre']}: {punt['puntaje']}\n"
                 count += 1
         texto_caz = "No hay cazadores" if count == 0 else texto_caz
