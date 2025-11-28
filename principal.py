@@ -200,22 +200,19 @@ class Enemigo:
         objeto `Juego` será el responsable de comprobar colisiones y
         decidir el resultado final (jugador gana / enemigo gana).
         """
-        dx = self.x - pos_jug_x
-        dy = self.y - pos_jug_y
-
         # obtener la salida desde el mapa que se pasó como parámetro
         sx, sy = mapa.get_salida()
 
         # mover en el eje x hacia la salida si es posible
-        if dx < sx and mapa.enemigo_pasa(self.x + 1, self.y):
+        if self.x < sx and mapa.enemigo_pasa(self.x + 1, self.y):
             self.x += 1
-        elif dx > sx and mapa.enemigo_pasa(self.x - 1, self.y):
+        elif self.x > sx and mapa.enemigo_pasa(self.x - 1, self.y):
             self.x -= 1
 
         # mover en el eje y hacia la salida si es posible
-        if dy < sy and mapa.enemigo_pasa(self.x, self.y + 1):
+        if self.y < sy and mapa.enemigo_pasa(self.x, self.y + 1):
             self.y += 1
-        elif dy > sy and mapa.enemigo_pasa(self.x, self.y - 1):
+        elif self.y > sy and mapa.enemigo_pasa(self.x, self.y - 1):
             self.y -= 1
               
 
@@ -282,18 +279,18 @@ class Mapa:
             for x in range(self.ancho):
                 terreno = random.randint(1,9)
                 
-                if x == 0 or x == self.ancho -1 or y == 0 or y == self.alto-1:
+                if (x == 0 or x == self.ancho -1 or y == 0 or y == self.alto-1) and (x,y) != self.salida:
                     fila.append(Muro(x,y))
                 
-                elif terreno == 1:
+                elif terreno == 1 and (x,y) != self.salida:
                     fila.append(Muro(x,y))
-                elif terreno == 2:
+                elif terreno == 2 and (x,y) != self.salida:
                     fila.append(Liana(x,y))
-                elif terreno == 3:
+                elif terreno == 3 and (x,y) != self.salida:
                     fila.append(Tunel(x, y))
+                elif (x,y) != self.salida:
+                    fila.append(Camino(x,y))
                 else:
-                    fila.append(Camino(x, y))
-                if (x,y) == self.salida:
                     fila.append(Salida(x,y))
 
             self.espacios.append(fila)
@@ -345,6 +342,8 @@ class Juego:
         self.enemigos = [] #lista para almacenar enemigos
         self.trampas = [] #lista para almacenar trampas
         self.bono_puntos = 0 # bono de puntos por cada enemigo atrapado
+        self.max_reapariciones = 5 #cantidad máxima de reapariciones de enemigos
+        self.reapariciones_usadas = 0  #contador de reapariciones usadas
         self.ultima_trampa = None
         self.enemigos_reaparecer = [] #lista para almacenar enemigos que deben reaparecer
         self.persecucion_activa = False
@@ -532,17 +531,36 @@ class Juego:
             for enemigo in self.enemigos:
                 if not enemigo.vivo:
                     continue
-                # jugador atrapó al enemigo
-                if (enemigo.x, enemigo.y) == (self.jugador.x, self.jugador.y):
-                    # jugador gana
-                    self.finalizar()
-                    break
-                # enemigo llegó a la salida
+
                 sx, sy = self.mapa.get_salida()
-                if (enemigo.x, enemigo.y) == (sx, sy):
-                    # jugador pierde
-                    self.perder()
+                atrapado = (enemigo.x, enemigo.y) == (self.jugador.x, self.jugador.y)
+                escapo = (enemigo.x, enemigo.y) == (sx, sy)
+
+                if atrapado or escapo:
+                    # marque al enemigo como muerto
+                    enemigo.vivo = False
+
+                    # contamos una vida usada (da igual si lo atrapaste o se escapó)
+                    self.reapariciones_usadas += 1
+
+                    # actualizar puntaje según lo que pasó
+                    if atrapado:
+                        # atrapó al enemigo -> +30 puntos
+                        self.bono_puntos += 30
+                    elif escapo:
+                        # el enemigo cruzó la salida -> -15 puntos
+                        self.bono_puntos -= 15
+
+                    # si todavía quedan vidas, reaparición en 2 segundos
+                    if self.reapariciones_usadas < self.max_reapariciones:
+                        delay = 2000  # milisegundos
+                        self.enemigos_reaparecer.append([enemigo, self.tiempo + delay])
+                    else:
+                        # ya se usaron las 5 vidas -> terminar partida
+                        self.finalizar()
+
                     break
+
 
         # Comprobar si el jugador llegó a la salida
         if self.verificar_salida():
@@ -563,6 +581,18 @@ class Juego:
             if enemigo.vivo:
                 pygame.draw.circle(self.pantalla, '#ff0000', ((enemigo.x * TAMANO_ESPACIO)+(TAMANO_ESPACIO // 2), (enemigo.y * TAMANO_ESPACIO)+ (TAMANO_ESPACIO // 2)), TAMANO_ESPACIO//3)
         self.texto_pygame = pygame.font.Font(None, 28)
+        
+        
+        if self.tipo == "3" or self.tipo == "4":
+            tamanno = 20
+            margen = 5
+            y = 10
+            for i in range(self.max_reapariciones):
+                color = "#00ff00" if i >= self.reapariciones_usadas else "#ff0000"
+                x = ANCHO_VEN - (i + 1) * (tamanno + margen)
+                pygame.draw.rect(self.pantalla, color, (x, y, tamanno, tamanno))
+                pygame.draw.rect(self.pantalla, "#000000", (x, y, tamanno, tamanno), 1)
+
 
         pygame.draw.rect(self.pantalla, "#ff0000", (10,10, int(self.jugador.energia*2), 20))
 
@@ -636,7 +666,7 @@ class VentanaPrincipal:
         tk.Label(self.ventana,text='Escapa del laberinto', font=("Arial", 18, "bold"),fg="#000000").pack(pady=20)
         tk.Label(self.ventana,text='Ingrese su nombre para iniciar:', font=("Arial", 15, "bold"), fg="#000000").pack(pady=10)
         self.entry_nombre = tk.Entry(self.ventana, font=("Arial", 14)); self.entry_nombre.pack(pady=10); self.entry_nombre.insert(0, 'NOM')
-        tk.Label(self.ventana,text='Ingrese: \n- 1 para escapista fácil\n- 2 para escapista difícil ', font=("Arial", 15, "bold"), fg="#000000").pack(pady=10)
+        tk.Label(self.ventana,text='Ingrese: \n- 1 para escapista fácil\n- 2 para escapista difícil\n- 3 para cazador fácil\n- 4 para cazador difícil',font=("Arial", 15, "bold"),fg="#000000").pack(pady=10)
         self.entry_tipo = tk.Entry(self.ventana, font=("Arial", 14)); self.entry_tipo.pack(pady=10); self.entry_tipo.insert(0, '1')
         
         tk.Button(self.ventana, text='Iniciar Juego', font=("Arial", 13), command=self.iniciar_juego).pack(pady=20)
