@@ -214,7 +214,7 @@ class Enemigo:
             return
         
         if self.timeout > 0:
-            self.timeout -= 30
+            self.timeout -= 2
         else:
             self.perseguir(pos_jug_x, pos_jug_y, mapa)
             self.timeout = self.vel
@@ -234,7 +234,7 @@ class Enemigo:
             return
         
         if self.timeout > 0:
-            self.timeout -= 30
+            self.timeout -= 2
         else:
             self.escapar(pos_jug_x, pos_jug_y, mapa)
             self.timeout = self.vel
@@ -253,9 +253,13 @@ class Mapa:
             for x in range(self.ancho):
                 terreno = random.randint(1,9)
                 
+                sx, sy = self.salida
                 if (x == 0 or x == self.ancho -1 or y == 0 or y == self.alto-1) and (x,y) != self.salida:
                     fila.append(Muro(x,y))
                 
+                elif (x,y) == (2,1) or (x,y) == (1,2) or (x,y) == (sx-1,sy) or (x,y) == (sx,sy-1):
+                    fila.append(Camino(x,y))
+
                 elif terreno == 1 and (x,y) != self.salida:
                     fila.append(Muro(x,y))
                 elif terreno == 2 and (x,y) != self.salida:
@@ -584,13 +588,13 @@ class Juego:
             self.pantalla.blit(pantalla_victoria,(0,0))
 
             texto_victoria = self.texto_pygame.render("Victoria", True, "#fffb00")
-            self.pantalla.blit(texto_victoria, (ANCHO_VEN//2, ALTO_VEN//2))
+            self.pantalla.blit(texto_victoria, (ANCHO_VEN//2-30, ALTO_VEN//2-20))
 
             puntaje = self.calcular_puntaje()
             texto_puntaje = self.texto_pygame.render(f"{puntaje}", True, "#ffffff")
-            self.pantalla.blit(texto_puntaje, (ANCHO_VEN//2, ALTO_VEN//2-40))
+            self.pantalla.blit(texto_puntaje, (ANCHO_VEN//2-30, ALTO_VEN//2-60))
 
-            ancho_boton = 220
+            ancho_boton = 270
             alto_boton = 50
             x_boton = ANCHO_VEN//2 - ancho_boton//2
             y_boton = ALTO_VEN//2 + 20
@@ -610,7 +614,7 @@ class Juego:
             self.pantalla.blit(pantalla_derrota,(0,0))
 
             texto_derrota = self.texto_pygame.render("Haz perdido", True, "#ff0000")
-            self.pantalla.blit(texto_derrota, (ANCHO_VEN//2 - 100, ALTO_VEN//2))
+            self.pantalla.blit(texto_derrota, (ANCHO_VEN//2 - 60, ALTO_VEN//2-20))
 
             ancho_boton = 260
             alto_boton = 50
@@ -665,6 +669,7 @@ class VentanaPrincipal:
     def __init__(self):
         self.nombre = None
         self.tipo = None
+        self.inicio = False
         self.ventana = tk.Tk()
         self.ventana.title("Escapa del laberinto")
         self.mostrar()
@@ -685,6 +690,13 @@ class VentanaPrincipal:
         tk.Button(self.ventana, text='Ver puntajes más altos', font=("Arial", 13), command=self.mostrar_puntajes).pack(pady=10)
         tk.Button(self.ventana, text='Reiniciar puntajes', font=("Arial", 13), command=self.reset_puntajes).pack(pady=10)
 
+        tk.Button(self.ventana, text='Cerrar', font=("Arial", 13, "bold"), fg='#ffffff', bg='#ff0000', command=self.ventana.destroy).pack(pady=10)
+
+    def juego_iniciado(self):
+        if self.inicio == True:
+            return True
+        return False
+
     def validar_nombre(self):
         nombre = self.entry_nombre.get().strip()
         if not len(nombre) == 3:
@@ -701,6 +713,7 @@ class VentanaPrincipal:
     
     def iniciar_juego(self):
         if self.validar_nombre() and self.validar_tipo():
+            self.inicio = True
             self.nombre = self.entry_nombre.get()
             self.tipo = self.entry_tipo.get()
             self.ventana.destroy()
@@ -749,8 +762,10 @@ def iniciar():
     if tipo == None:
         tipo = "1"
 
-    juego = Juego(nombre, tipo)
-    juego.ejecutar()
+    print(ventana_principal.juego_iniciado())
+    if ventana_principal.juego_iniciado():
+        juego = Juego(nombre, tipo)
+        juego.ejecutar()
     root = tk.Tk()
     root.withdraw()
     root.destroy()
